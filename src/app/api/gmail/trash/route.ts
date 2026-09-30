@@ -28,13 +28,13 @@ export async function POST(request: Request) {
   if (
     !Array.isArray(messageIds) ||
     messageIds.length === 0 ||
-    messageIds.length > 50 ||
+    messageIds.length > 1000 ||
     !messageIds.every(
       (id) => typeof id === "string" && id.trim().length > 0
     )
   ) {
     return NextResponse.json(
-      { error: "Provide between 1 and 50 valid Gmail message IDs." },
+      { error: "Provide between 1 and 1000 valid Gmail message IDs." },
       { status: 400 }
     );
   }

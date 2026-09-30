@@ -5,7 +5,6 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route";
 type GmailMessage = {
   id: string;
   threadId: string;
-  labelIds?: string[];
 };
 
 type GmailHeader = {
@@ -130,48 +129,83 @@ export async function GET() {
     );
   }
 
-  const listResponse = await fetch(
-    "https://gmail.googleapis.com/gmail/v1/users/me/messages?labelIds=INBOX&maxResults=50",
-    {
-      headers: {
-        Authorization: `Bearer ${session.accessToken}`,
-      },
-    }
-  );
+  try {
+    const allMessages: GmailMessage[] = [];
+    let pageToken: string | undefined;
 
-  const listData = await listResponse.json();
-
-  if (!listResponse.ok) {
-    return NextResponse.json(
-      { error: "Unable to list Gmail messages.", details: listData },
-      { status: listResponse.status }
-    );
-  }
-
-  const messages: GmailMessage[] = listData.messages ?? [];
-
-  const detailedMessages = await Promise.all(
-    messages.map(async (message) => {
-      const response = await fetch(
-        `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}?format=metadata&metadataHeaders=From&metadataHeaders=Subject&metadataHeaders=Date&metadataHeaders=List-Unsubscribe`,
-        {
-          headers: {
-            Authorization: `Bearer ${session.accessToken}`,
-          },
-        }
+    do {
+      const url = new URL(
+        "https://gmail.googleapis.com/gmail/v1/users/me/messages"
       );
 
-      if (!response.ok) {
-        return null;
+      url.searchParams.set("maxResults", "500");
+      url.searchParams.set("includeSpamTrash", "false");
+
+      if (pageToken) {
+        url.searchParams.set("pageToken", pageToken);
       }
 
-      return (await response.json()) as GmailMessageMetadata;
-    })
-  );
+      const response = await fetch(url.toString(), {
+        headers: {
+          Authorization: `Bearer ${session.accessToken}`,
+        },
+      });
 
-  const analyzedMessages = detailedMessages
-    .filter((message): message is GmailMessageMetadata => message !== null)
-    .map((message) => {
+      const data = await response.json();
+
+      if (!response.ok) {
+        return NextResponse.json(
+          {
+            error: "Unable to list Gmail messages.",
+            details: data,
+          },
+          { status: response.status }
+        );
+      }
+
+      allMessages.push(...(data.messages ?? []));
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    const detailedMessages: GmailMessageMetadata[] = [];
+
+    for (let index = 0; index < allMessages.length; index += 50) {
+      const batch = allMessages.slice(index, index + 50);
+
+      const results = await Promise.all(
+        batch.map(async (message) => {
+          const url = new URL(
+            `https://gmail.googleapis.com/gmail/v1/users/me/messages/${message.id}`
+          );
+
+          url.searchParams.set("format", "metadata");
+          url.searchParams.append("metadataHeaders", "From");
+          url.searchParams.append("metadataHeaders", "Subject");
+          url.searchParams.append("metadataHeaders", "Date");
+          url.searchParams.append("metadataHeaders", "List-Unsubscribe");
+
+          const response = await fetch(url.toString(), {
+            headers: {
+              Authorization: `Bearer ${session.accessToken}`,
+            },
+          });
+
+          if (!response.ok) {
+            return null;
+          }
+
+          return (await response.json()) as GmailMessageMetadata;
+        })
+      );
+
+      detailedMessages.push(
+        ...results.filter(
+          (message): message is GmailMessageMetadata => message !== null
+        )
+      );
+    }
+
+    const analyzedMessages = detailedMessages.map((message) => {
       const headers = message.payload?.headers ?? [];
 
       return {
@@ -184,18 +218,25 @@ export async function GET() {
       };
     });
 
-  const counts = analyzedMessages.reduce(
-    (result, message) => {
-      result[message.category] =
-        (result[message.category] ?? 0) + 1;
-      return result;
-    },
-    {} as Record<string, number>
-  );
+    const counts = analyzedMessages.reduce(
+      (result, message) => {
+        result[message.category] =
+          (result[message.category] ?? 0) + 1;
 
-  return NextResponse.json({
-    analyzed: analyzedMessages.length,
-    counts,
-    messages: analyzedMessages,
-  });
+        return result;
+      },
+      {} as Record<string, number>
+    );
+
+    return NextResponse.json({
+      analyzed: analyzedMessages.length,
+      counts,
+      messages: analyzedMessages,
+    });
+  } catch {
+    return NextResponse.json(
+      { error: "Unable to complete Gmail analysis." },
+      { status: 500 }
+    );
+  }
 }
