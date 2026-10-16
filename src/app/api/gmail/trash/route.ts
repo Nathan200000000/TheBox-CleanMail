@@ -11,13 +11,20 @@ export async function POST(request: Request) {
     );
   }
 
-  let body: { messageIds?: unknown };
+  let body: { messageIds?: unknown; confirm?: unknown };
 
   try {
     body = await request.json();
   } catch {
     return NextResponse.json(
       { error: "Invalid request body." },
+      { status: 400 }
+    );
+  }
+
+  if (body.confirm !== true) {
+    return NextResponse.json(
+      { error: "Explicit confirmation is required before moving messages to Trash." },
       { status: 400 }
     );
   }
