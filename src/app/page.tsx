@@ -340,6 +340,7 @@ export default function Home() {
         },
         body: JSON.stringify({
           messageIds: selectedMessages,
+          confirm: true,
         }),
       });
 
