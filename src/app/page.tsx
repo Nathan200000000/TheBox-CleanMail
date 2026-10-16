@@ -425,6 +425,10 @@ export default function Home() {
               <p className="mt-4 text-sm text-slate-500">
                 You will be able to choose your Google account.
               </p>
+              <p className="mt-4 text-sm text-slate-500">
+                By continuing, you can review our{" "}
+                <Link href="/privacy" className="underline underline-offset-4">Privacy Policy</Link>.
+              </p>
             </div>
           </div>
         </section>
@@ -911,7 +915,10 @@ export default function Home() {
 
       <footer className="border-t border-slate-200">
         <div className="mx-auto max-w-6xl px-6 py-8 text-sm text-slate-500">
-          CleanMail — Gmail cleanup with user control.
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span>CleanMail — Gmail cleanup with user control.</span>
+            <Link href="/privacy" className="underline underline-offset-4">Privacy Policy</Link>
+          </div>
         </div>
       </footer>
     </main>
