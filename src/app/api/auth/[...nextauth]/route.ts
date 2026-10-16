@@ -22,13 +22,13 @@ export const authOptions: NextAuthOptions = {
       if (account) {
         token.accessToken = account.access_token;
         token.refreshToken = account.refresh_token;
+        token.accessTokenExpires = account.expires_at ? account.expires_at * 1000 : undefined;
       }
 
       return token;
     },
 
-    async session({ session, token }) {
-      session.accessToken = token.accessToken;
+    async session({ session }) {
       return session;
     },
   },
