@@ -1,6 +1,5 @@
-import { getServerSession } from "next-auth";
 import { NextResponse } from "next/server";
-import { authOptions } from "@/app/api/auth/[...nextauth]/route";
+import { getGoogleAccessToken } from "@/lib/google-access-token";
 
 type GmailHeader = {
   name: string;
@@ -24,9 +23,9 @@ function getHeader(headers: GmailHeader[] | undefined, name: string) {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
+  const accessToken = await getGoogleAccessToken(request);
 
-  if (!session?.accessToken) {
+  if (!accessToken) {
     return NextResponse.json(
       { error: "Gmail is not connected." },
       { status: 401 }
@@ -87,7 +86,7 @@ export async function POST(request: Request) {
 
           const response = await fetch(url.toString(), {
             headers: {
-              Authorization: `Bearer ${session.accessToken}`,
+              Authorization: `Bearer ${accessToken}`,
             },
             cache: "no-store",
           });
