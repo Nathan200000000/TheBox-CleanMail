@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError, gmailFailure } from "@/lib/api-guards";
 import { getGoogleAccessToken } from "@/lib/google-access-token";
 
 const allowedQueries: Record<string, string> = {
@@ -23,7 +24,11 @@ export async function GET(request: Request) {
   const category = requestUrl.searchParams.get("category") ?? "promotions";
   const pageToken = requestUrl.searchParams.get("pageToken");
 
-  const query = allowedQueries[category];
+  if (pageToken !== null && !/^[A-Za-z0-9_-]{1,256}$/.test(pageToken)) {
+    return apiError("Invalid page token.", 400);
+  }
+
+  const query = Object.hasOwn(allowedQueries, category) ? allowedQueries[category] : undefined;
 
   if (!query) {
     return NextResponse.json(
@@ -57,13 +62,7 @@ export async function GET(request: Request) {
     const data = await response.json();
 
     if (!response.ok) {
-      return NextResponse.json(
-        {
-          error: "Unable to find Gmail cleanup candidates.",
-          details: data,
-        },
-        { status: response.status }
-      );
+      return gmailFailure(response.status);
     }
 
     const messages = (data.messages ?? []).map(
