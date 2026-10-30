@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiError, isSameOrigin, isValidMessageIdList } from "@/lib/api-guards";
 import { getGoogleAccessToken } from "@/lib/google-access-token";
 
 type GmailHeader = {
@@ -23,6 +24,10 @@ function getHeader(headers: GmailHeader[] | undefined, name: string) {
 }
 
 export async function POST(request: Request) {
+  if (!isSameOrigin(request)) {
+    return apiError("Cross-site requests are not allowed.", 403);
+  }
+
   const accessToken = await getGoogleAccessToken(request);
 
   if (!accessToken) {
@@ -46,12 +51,7 @@ export async function POST(request: Request) {
   const messageIds = body.messageIds;
 
   if (
-    !Array.isArray(messageIds) ||
-    messageIds.length === 0 ||
-    messageIds.length > 1000 ||
-    !messageIds.every(
-      (id) => typeof id === "string" && id.trim().length > 0
-    )
+    !isValidMessageIdList(messageIds)
   ) {
     return NextResponse.json(
       { error: "Provide between 1 and 1000 valid Gmail message IDs." },

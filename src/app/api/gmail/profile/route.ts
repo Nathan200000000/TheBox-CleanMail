@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { gmailFailure } from "@/lib/api-guards";
 import { getGoogleAccessToken } from "@/lib/google-access-token";
 
 export async function GET(request: Request) {
@@ -23,10 +24,7 @@ export async function GET(request: Request) {
   const data = await response.json();
 
   if (!response.ok) {
-    return NextResponse.json(
-      { error: "Gmail API request failed.", details: data },
-      { status: response.status }
-    );
+    return gmailFailure(response.status);
   }
 
   return NextResponse.json({
